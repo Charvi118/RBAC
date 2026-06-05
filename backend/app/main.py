@@ -1,3 +1,31 @@
+"""
+FastAPI applications entry point for the RBAC backend.
+
+Responsibilities:
+- Configure the FastAPI application.
+- Configure session middleware.
+- Configure CORS for frontend access.
+- Expose login, logout, and session-check endpoints.
+- Expose protected business routes.
+- Expose admin RBAC matrix and role-permission management endpoints.
+
+Authentication:
+- User logs in through POST /login.
+- On successful login, user_id is stored in the session.
+- Protected routes read user_id from the session.
+
+Authorization:
+- Protected routes call check_permission() before allowing access.
+- Missing session returns 401.
+- Missing permission returns 403.
+
+Known security issues:
+- Session secret must not be hardcoded.
+- Admin RBAC routes should not use delete_user permission.
+- Login should return HTTP 401 for invalid credentials.
+- Login should be rate-limited before production.
+- /db-check should be disabled in production.
+"""
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
@@ -19,16 +47,43 @@ app.add_middleware(
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    """
+    Request body for user login.    
 
+
+password: Plain-text password submitted by the user.
+    Security note:
+        Password must only be used for verification and must never be logged.
+    """
+    username: str
+    passwor
 
 class RolePermissionRequest(BaseModel):
+    """
+    Request body for assigning or removing a permission from a role.
+    Fields:
+        role_id: Target role ID.
+        permission_id: Target permission ID.
+
+    Security note:
+        Changing role-permission mappings changes authorization behavior
+        and must be audit logged before production.
+    """
     role_id: int
     permission_id: int
 
 
 class AssignRoleRequest(BaseModel):
+    """
+    Request body for assigning a role to a user.
+    Fields:
+        user_id: Target user ID.
+        role_id: Role ID to be assigned to the user.
+
+    Security note:
+        Assigning roles changes to user's access level and should be
+        restricted to authorized administrators only.
+    """
     user_id: int
     role_id: int
 
@@ -47,6 +102,20 @@ def db_check():
 
 @app.post("/login")
 def login(data: LoginRequest, request: Request):
+    """
+    Authenticate a user and create a session.
+
+    On success:
+        - Stores user_id in the session.
+        - Returns login success response.
+
+    On failure:
+        - Returns logic failure response.
+        - Recommended: Raise HTTP 401 instead of returning success=False.
+
+    Security note:
+        Login should be rate-limited and failed attempts should be audited.
+    """
     user_id = verify_user(data.username, data.password)
     if user_id is None:
         return {"success": False, "message": "Invalid credentials or inactive user."}
@@ -57,6 +126,17 @@ def login(data: LoginRequest, request: Request):
 
 @app.get("/session_check")
 def session_check(request: Request):
+    """
+    Check whether the current request has an active user session.
+
+    Returns:
+        dict:
+            logged_in = False when no user_id exists in session.
+            logged_in = True and user_id when session exists.
+    
+    Frontend use:
+        Used by the UI to determine whether the user is currently logged in.
+    """
     user_id = request.session.get("user_id")
     if not user_id:
         return {"logged_in": False}
@@ -65,6 +145,13 @@ def session_check(request: Request):
 
 @app.post("/logout")
 def logout(request: Request):
+    """
+    Clear the user session and log the user out.
+
+    Security note:
+        This clears only the current session.
+        It does not revoke other sessions or tokens.
+    """
     request.session.clear()
     return {"success": True, "message": "Logged out"}
 
@@ -79,6 +166,17 @@ def dashboard(request: Request):
 
 @app.get("/billing")
 def billing(request: Request):
+    """
+    Protected billing route.
+
+    Current permission:
+        update_billing
+
+    Recommended permission:
+        billing:view for GET access.
+        billing:update should be reserved for modifying billing data.
+    
+    """
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Login needed")
@@ -89,6 +187,18 @@ def billing(request: Request):
 
 @app.get("/delete-user")
 def delete_user(request: Request):
+    """
+    Protected user deletion access-check route.
+
+    Current behavior:
+        Does not delete a user.
+        Only confirms that the user has delete_user permission.
+    
+    Recommended change:
+        Rename this route if it is only an access  check.
+        Use DELETE /admin/users/{user_id} for actual deletion.
+    
+    """
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Login needed")
@@ -99,6 +209,23 @@ def delete_user(request: Request):
 
 @app.get("/admin/matrix")
 def admin_matrix(request: Request):
+    """
+      Return the RBAC role-permission matrix.
+
+      Response includes:
+         - Role
+         - Permissions
+         - Role-permission mappings
+
+       Current permission:
+         - delete_user
+
+       Recommended permission:
+         - rbac:view
+
+       Security note:
+           Viewing RBAC configuration should have its own permission.
+    """
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Login needed")
@@ -131,6 +258,22 @@ def admin_matrix(request: Request):
 
 @app.post("/admin/role-permission")
 def add_role_permission(data: RolePermissionRequest, request: Request):
+    """
+    Add a permission to a role.
+
+    Request body:
+        role_id: ID of the target role.
+        permission_id: ID of the permission to assign.
+
+    Current permission:
+        delete_user
+         
+    Recommended permission:
+        rbac:manage
+
+    Security note:
+        This action changes authorization behavior and must be audit logged.
+    """
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Login needed")
@@ -155,6 +298,22 @@ def add_role_permission(data: RolePermissionRequest, request: Request):
 
 @app.delete("/admin/role-permission")
 def delete_role_permission(data: RolePermissionRequest, request: Request):
+    """
+    Remove a permission from a role.
+
+    Request body:
+        role_id: ID of the target role.
+        permission_id: ID of the permission to remove.
+    
+    Current permission:
+        delete_user
+
+    Recommended permission:
+        rbac:manage
+
+    Security note:
+        This action changes authorization behavior and must be audit logged.
+    """
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Login needed")
@@ -193,6 +352,24 @@ def delete_role_permission(data: RolePermissionRequest, request: Request):
 
 @app.post("/admin/assign-role")
 def assign_role_to_user(data: AssignRoleRequest, request: Request):
+    """
+    Assign a role to a user.
+
+    Request body:
+        user_id: ID of the target user.
+        role_id: ID of the role to assign.
+
+    Current permission:
+        delete_user
+    
+    Recommended permission:
+        rbac:manage
+
+    Security note:
+        This action changes user access levels and should be restricted to 
+        authorized administrators. Role assignments should be audit
+        logged before productionuse.
+    """
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Login needed")
