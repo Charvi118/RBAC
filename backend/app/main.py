@@ -56,7 +56,8 @@ password: Plain-text password submitted by the user.
         Password must only be used for verification and must never be logged.
     """
     username: str
-    passwor
+    password: str
+    
 
 class RolePermissionRequest(BaseModel):
     """
