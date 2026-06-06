@@ -432,7 +432,7 @@ def get_me(request: Request):
     cur = conn.cursor()
 
     cur.execute(
-        "SELECT user_id, username, is_active FROM users WHERE user_id = %s",
+        "select user_id, username, is_active from users where user_id = %s",
         (user_id,),
     )
     user_row = cur.fetchone()
@@ -444,11 +444,11 @@ def get_me(request: Request):
 
     cur.execute(
         """
-        SELECT r.role_name
-        FROM user_roles ur
-        JOIN roles r ON ur.role_id = r.role_id
-        WHERE ur.user_id = %s
-        ORDER BY r.role_name
+        select r.role_name
+        from user_roles ur
+        join roles r ON ur.role_id = r.role_id
+        where ur.user_id = %s
+        order by r.role_name
         """,
         (user_id,),
     )
@@ -456,12 +456,12 @@ def get_me(request: Request):
 
     cur.execute(
         """
-        SELECT DISTINCT p.permission_key
-        FROM user_roles ur
-        JOIN role_permissions rp ON ur.role_id = rp.role_id
-        JOIN permissions p ON rp.permission_id = p.permission_id
-        WHERE ur.user_id = %s
-        ORDER BY p.permission_key
+        select distinct p.permission_key
+        from user_roles ur
+        join role_permissions rp on ur.role_id = rp.role_id
+        join permissions p on rp.permission_id = p.permission_id
+        where ur.user_id = %s
+        order by p.permission_key
         """,
         (user_id,),
     )
