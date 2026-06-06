@@ -57,7 +57,7 @@ password: Plain-text password submitted by the user.
     """
     username: str
     password: str
-    
+
 
 class RolePermissionRequest(BaseModel):
     """
@@ -134,7 +134,7 @@ def session_check(request: Request):
         dict:
             logged_in = False when no user_id exists in session.
             logged_in = True and user_id when session exists.
-    
+
     Frontend use:
         Used by the UI to determine whether the user is currently logged in.
     """
@@ -176,7 +176,7 @@ def billing(request: Request):
     Recommended permission:
         billing:view for GET access.
         billing:update should be reserved for modifying billing data.
-    
+
     """
     user_id = request.session.get("user_id")
     if not user_id:
@@ -194,11 +194,11 @@ def delete_user(request: Request):
     Current behavior:
         Does not delete a user.
         Only confirms that the user has delete_user permission.
-    
+
     Recommended change:
         Rename this route if it is only an access  check.
         Use DELETE /admin/users/{user_id} for actual deletion.
-    
+
     """
     user_id = request.session.get("user_id")
     if not user_id:
@@ -268,7 +268,7 @@ def add_role_permission(data: RolePermissionRequest, request: Request):
 
     Current permission:
         delete_user
-         
+
     Recommended permission:
         rbac:manage
 
@@ -305,7 +305,7 @@ def delete_role_permission(data: RolePermissionRequest, request: Request):
     Request body:
         role_id: ID of the target role.
         permission_id: ID of the permission to remove.
-    
+
     Current permission:
         delete_user
 
@@ -362,7 +362,7 @@ def assign_role_to_user(data: AssignRoleRequest, request: Request):
 
     Current permission:
         delete_user
-    
+
     Recommended permission:
         rbac:manage
 
@@ -402,3 +402,78 @@ def assign_role_to_user(data: AssignRoleRequest, request: Request):
     conn.close()
 
     return {"success": True, "message": "Role assigned to user"}
+
+
+@app.get("/me")
+def get_me(request: Request):
+    """
+    Return the currently logged in the user's profile,roles, and permissions.
+
+    Request:
+        Session based request using the current logged in users session.
+
+    Current permission:
+        Login required.
+
+    Recommended permission:
+        authenticated_user
+
+    Security note:
+        This endpoint exposes the current usre's access profile and
+        shoudl only return data for the active session owner. It must
+        not allow users to inspect another user's identity, roles, or permissions.
+
+    """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Login needed")
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT user_id, username, is_active FROM users WHERE user_id = %s",
+        (user_id,),
+    )
+    user_row = cur.fetchone()
+
+    if not user_row:
+        cur.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    cur.execute(
+        """
+        SELECT r.role_name
+        FROM user_roles ur
+        JOIN roles r ON ur.role_id = r.role_id
+        WHERE ur.user_id = %s
+        ORDER BY r.role_name
+        """,
+        (user_id,),
+    )
+    roles = [row[0] for row in cur.fetchall()]
+
+    cur.execute(
+        """
+        SELECT DISTINCT p.permission_key
+        FROM user_roles ur
+        JOIN role_permissions rp ON ur.role_id = rp.role_id
+        JOIN permissions p ON rp.permission_id = p.permission_id
+        WHERE ur.user_id = %s
+        ORDER BY p.permission_key
+        """,
+        (user_id,),
+    )
+    permissions = [row[0] for row in cur.fetchall()]
+
+    cur.close()
+    conn.close()
+
+    return {
+        "user_id": user_row[0],
+        "username": user_row[1],
+        "is_active": user_row[2],
+        "roles": roles,
+        "permissions": permissions,
+    }
