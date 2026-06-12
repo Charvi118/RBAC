@@ -1,48 +1,52 @@
 """
-Authentication helper module for the RBAC backend. 
+Authentication helper module for the RBAC backend.
 
 Responsibilities:
-- Verify user credentials during login.
-- Fetch user password hash and active status from the database.
-- Validate password using bcrypt through passlib.
-- Return the authenticated user's user_id when login is successful. 
+- verify user login credentials
+- fetch stored password hash and active status from the database
+- return user_id when authentication succeeds
 
-Security notes:
-- Passwords must never be stored in plaintext. 
-- Plain text passwords must never be logged. 
-- Login failures must not reveal whether the username, passoword, or active status caused failure.
-- Failed login attempts should be rate-limited and audited before production. 
+This file must not be responsible for:
+- creating sessions
+- handling API responses
+- deciding route-level permissions
+
+Security note:
+- passwords must never be stored in plaintext
+- plaintext passwords must never be logged
+- failed login should not expose the exact failure reason
+
+Production note:
+- login rate limiting and audit logging should be handled by the route layer
 """
-from app.db import get_connection
 from passlib.context import CryptContext
 
+from app.db import get_connection
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def verify_user(username: str, password: str):
     """
-    Verifies a user's login credentials.
+    Verify a user's login credentials.
 
     Args:
-        username (str): Username submitted by the user.
-        password (str): Plain text password submitted during login.
+        username: username submitted by the user
+        password: plaintext password submitted during login
 
     Returns:
-        int|None:
-            Returns user_id if the username exists, password is valid, and
-            the user is active. Returns None otherwise.
+        int | None:
+            authenticated user_id when the username exists, the password is
+            valid, and the user is active; otherwise None
 
-    Security behavior:
-        - Uses bcrypt password verification through passlib.
-        - Does not authenticate inactive users.
-        - Does not expose the exact login failure reason.
+    Security note:
+        This function uses bcrypt verification and does not reveal the exact
+        reason for login failure.
     """
-
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT user_id, password_hash, is_active FROM users WHERE username = %s",
+        "select user_id, password_hash, is_active from users where username = %s",
         (username,),
     )
     row = cur.fetchone()
@@ -51,7 +55,9 @@ def verify_user(username: str, password: str):
 
     if not row:
         return None
+
     user_id, password_hash, is_active = row
     if pwd_context.verify(password, password_hash) and is_active:
         return user_id
+
     return None

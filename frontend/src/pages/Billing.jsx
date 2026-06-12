@@ -2,40 +2,40 @@
 Billing page for the RBAC frontend.
 
 Responsibilities:
-- Check whether the logged-in user can access the billing module.
-- Call the protected backend billing route when the page opens.
-- Redirect unauthenticated users to the Login page.
-- Redirect unauthorized users to the Access Denied page with the
-  required permission.
-- Show a success message when billing access is granted.
+- check whether the logged-in user can access the billing module
+- call the protected backend billing route when the page opens
+- redirect unauthenticated users to the Login page
+- redirect unauthorized users to the Access Denied page with the
+  required permission
+- show a success message when billing access is granted
 
 Access rule:
-- This page requires the update_billing permission.
+- this page currently expects the billing:update permission
 */
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api";
 
 export default function BillingPage({ setCurrentPage, setDeniedPermission }) {
     /*
-   Renders the Billing page.
+    Renders the Billing page.
 
-   Props:
-       setCurrentPage (function):
-           Used for frontend page navigation.
-       setDeniedPermission (function):
-           Stores the missing permission before redirecting
-           to the Access Denied page.
+    Props:
+        setCurrentPage (function):
+            used for frontend page navigation
+        setDeniedPermission (function):
+            stores the missing permission before redirecting
+            to the Access Denied page
 
-   Behavior:
-       - Calls GET /billing when the page loads.
-       - Redirects unauthenticated users to Login.
-       - Redirects unauthorized users to Access Denied.
-       - Shows a success message when access is allowed.
+    Behavior:
+        - calls get /billing when the page loads
+        - redirects unauthenticated users to Login
+        - redirects unauthorized users to Access Denied
+        - shows a success message when access is allowed
 
-   Returns:
-       JSX.Element:
-           A simple protected page with a back button and billing access message.
-   */
+    Returns:
+        JSX.Element:
+            a simple protected page with a back button and billing access message
+    */
     const [message, setMessage] = useState("Checking billing access...");
     const [loading, setLoading] = useState(true);
 
@@ -54,7 +54,7 @@ export default function BillingPage({ setCurrentPage, setDeniedPermission }) {
                 }
 
                 if (error.message === "FORBIDDEN") {
-                    setDeniedPermission("update_billing");
+                    setDeniedPermission("billing:update");
                     setCurrentPage("access-denied");
                     return;
                 }

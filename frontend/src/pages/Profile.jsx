@@ -2,11 +2,11 @@
 Profile page for the RBAC frontend.
 
 Responsibilities:
-- Restore and verify the logged-in user session.
-- Load the current user's profile data from the backend.
-- Show account summary, roles, permissions, and accessible pages.
-- Use shared module configuration to display allowed and denied pages.
-- Allow the user to go back to the dashboard or log out.
+- restore and verify the logged-in user session
+- load the current user's profile data from the backend
+- show account summary, roles, permissions, and accessible pages
+- use shared module configuration to display allowed and denied pages
+- allow the user to go back to the dashboard or log out
 
 Data shown on this page:
 - user_id
@@ -26,19 +26,19 @@ export default function ProfilePage({ setCurrentPage }) {
 
     Props:
         setCurrentPage (function):
-            Used for frontend page navigation.
+            used for frontend page navigation
 
     Behavior:
-        - Calls /session_check when the page loads.
-        - Redirects unauthenticated users to Login.
-        - Calls /me to fetch current user details.
-        - Calls /logout when the user clicks Logout.
-        - Uses the shared modules configuration to show page access.
+        - calls /session_check when the page loads
+        - redirects unauthenticated users to Login
+        - calls /me to fetch current user details
+        - calls /logout when the user clicks Logout
+        - uses the shared modules configuration to show page access
 
     Returns:
         JSX.Element:
-            A styled profile page with account summary, roles,
-            permissions, and accessible page information.
+            a styled profile page with account summary, roles,
+            permissions, and accessible page information
     */
     const [profile, setProfile] = useState(null);
     const [message, setMessage] = useState("Loading profile...");

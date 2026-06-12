@@ -2,13 +2,13 @@
 Access Denied page for the RBAC frontend.
 
 Responsibilities:
-- Show a clear message when a logged-in user tries to open a restricted page.
-- Display the required permission when available.
-- Provide a button to return the user to the dashboard.
+- show a clear message when a logged-in user tries to open a restricted page
+- display the required permission when available
+- provide a button to return the user to the dashboard
 
 UI behavior:
-- Shows a centered card with an access denied message.
-- Uses the shared warm beige and white visual style of the frontend.
+- shows a centered card with an access denied message
+- uses the shared warm beige and white visual style of the frontend
 */
 export default function AccessDeniedPage({ setCurrentPage, deniedPermission }) {
     /*
@@ -16,15 +16,15 @@ export default function AccessDeniedPage({ setCurrentPage, deniedPermission }) {
 
     Props:
         setCurrentPage (function):
-            Used to send the user back to the dashboard.
+            used to send the user back to the dashboard
         deniedPermission (string):
-            The permission required to access the restricted page.
-            Shown only when provided.
+            the permission required to access the restricted page
+            shown only when provided
 
     Returns:
         JSX.Element:
-            A styled access denied screen with an optional permission message
-            and a button to go back to the dashboard.
+            a styled access denied screen with an optional permission message
+            and a button to go back to the dashboard
     */
     return (
         <div
@@ -68,13 +68,17 @@ export default function AccessDeniedPage({ setCurrentPage, deniedPermission }) {
                 >
                     You do not have permission to access this page.
                 </p>
+
                 {deniedPermission && (
-                    <p style={{
-                        color: "#8a3d3d",
-                        marginBottom: "24px",
-                        fontWeight: "600"
-                    }}
-                    > Required permission: {deniedPermission}</p>
+                    <p
+                        style={{
+                            color: "#8a3d3d",
+                            marginBottom: "24px",
+                            fontWeight: "600"
+                        }}
+                    >
+                        Required permission: {deniedPermission}
+                    </p>
                 )}
 
                 <button

@@ -2,17 +2,18 @@
 Admin RBAC Matrix page for the frontend.
 
 Responsibilities:
-- Load the role-permission matrix from the backend.
-- Render roles as rows and permissions as columns.
-- Show checked checkboxes when a role-permission mapping exists.
-- Add a mapping when a checkbox is checked.
-- Remove a mapping when a checkbox is unchecked.
-- Protect the locked SUPER_ADMIN and delete_user mapping.
-- Redirect unauthenticated and unauthorized users correctly.
+- load the role-permission matrix from the backend
+- render roles as rows and permissions as columns
+- show checked checkboxes when a role-permission mapping exists
+- add a mapping when a checkbox is checked
+- remove a mapping when a checkbox is unchecked
+- protect the locked SUPER_ADMIN and user:delete mapping
+- redirect unauthenticated and unauthorized users correctly
 
 RBAC behavior:
-- Access to this page currently requires the delete_user permission.
-- The SUPER_ADMIN and delete_user mapping is hard-locked in the UI.
+- access to this page currently requires the rbac:view permission
+- updating mappings requires rbac:manage on the backend
+- the SUPER_ADMIN and user:delete mapping is hard-locked in the UI
 */
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api";
@@ -23,22 +24,22 @@ export default function AdminMatrixPage({ setCurrentPage, setDeniedPermission })
 
     Props:
         setCurrentPage (function):
-            Used for frontend page navigation.
+            used for frontend page navigation
         setDeniedPermission (function):
-            Stores the missing permission before redirecting
-            to the Access Denied page.
+            stores the missing permission before redirecting
+            to the Access Denied page
 
     Behavior:
-        - Calls GET /admin/matrix when the page loads.
-        - Redirects unauthenticated users to Login.
-        - Redirects unauthorized users to Access Denied.
-        - Uses POST /admin/role-permission to add mappings.
-        - Uses DELETE /admin/role-permission to remove mappings.
-        - Refreshes the matrix after each successful change.
+        - calls get /admin/matrix when the page loads
+        - redirects unauthenticated users to Login
+        - redirects unauthorized users to Access Denied
+        - uses post /admin/role-permission to add mappings
+        - uses delete /admin/role-permission to remove mappings
+        - refreshes the matrix after each successful change
 
     Returns:
         JSX.Element:
-            A styled RBAC matrix table with interactive permission checkboxes.
+            a styled RBAC matrix table with interactive permission checkboxes
     */
     const [matrix, setMatrix] = useState(null);
     const [message, setMessage] = useState("Loading admin matrix...");
@@ -63,7 +64,7 @@ export default function AdminMatrixPage({ setCurrentPage, setDeniedPermission })
             }
 
             if (error.message === "FORBIDDEN") {
-                setDeniedPermission("delete_user");
+                setDeniedPermission("rbac:view");
                 setCurrentPage("access-denied");
                 return;
             }
@@ -83,7 +84,7 @@ export default function AdminMatrixPage({ setCurrentPage, setDeniedPermission })
     };
 
     const isLockedCell = (roleName, permissionKey) => {
-        return roleName === "SUPER_ADMIN" && permissionKey === "delete_user";
+        return roleName === "SUPER_ADMIN" && permissionKey === "user:delete";
     };
 
     const togglePermission = async (roleId, permissionId, alreadyChecked) => {
@@ -104,13 +105,22 @@ export default function AdminMatrixPage({ setCurrentPage, setDeniedPermission })
             }
 
             if (error.message === "FORBIDDEN") {
-                setDeniedPermission("delete_user");
+                setDeniedPermission("rbac:manage");
                 setCurrentPage("access-denied");
                 return;
             }
 
             setMessage("Could not update permission");
         }
+    };
+
+    const formatPermissionLabel = (permissionKey) => {
+        return permissionKey
+            .replace(":", " ")
+            .replace("_", " ")
+            .split(" ")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
     };
 
     if (loading) {
@@ -133,75 +143,128 @@ export default function AdminMatrixPage({ setCurrentPage, setDeniedPermission })
                 ← Back
             </button>
 
-            <h1>Admin RBAC Matrix</h1>
-            <p style={{ color: "#6b5747", marginTop: "8px", marginBottom: "20px" }}>
-                Manage which permissions are assigned to each role.
-            </p>
-
+            <h1
+                style={{
+                    fontSize: "40px",
+                    color: "#3f3127",
+                    marginBottom: "8px"
+                }}
+            >
+                Admin RBAC Matrix
+            </h1>
             {message && <p>{message}</p>}
 
             {matrix && (
-                <div style={{ display: "flex", justifyContent: "center", marginTop: "24px" }}>
-                    <table
-                        border="1"
-                        cellPadding="12"
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        marginTop: "24px"
+                    }}
+                >
+                    <div
                         style={{
-                            borderCollapse: "collapse",
                             backgroundColor: "#ffffff",
-                            minWidth: "700px",
-                            boxShadow: "0 8px 24px rgba(92, 74, 58, 0.08)",
-                            border: "1px solid #d8cbbd"
+                            padding: "18px",
+                            borderRadius: "18px",
+                            boxShadow: "0 10px 28px rgba(92, 74, 58, 0.10)",
+                            overflowX: "auto",
+                            maxWidth: "100%"
                         }}
                     >
-                        <thead>
-                            <tr style={{ backgroundColor: "#9c7b63", color: "#ffffff" }}>
-                                <th>Role / Permission</th>
-                                {matrix.permissions.map((permission) => (
-                                    <th key={permission.permission_id}>
-                                        {permission.permission_key}
+                        <table
+                            style={{
+                                borderCollapse: "collapse",
+                                minWidth: "980px",
+                                fontSize: "18px"
+                            }}
+                        >
+                            <thead>
+                                <tr style={{ backgroundColor: "#9c7b63", color: "#ffffff" }}>
+                                    <th
+                                        style={{
+                                            padding: "16px 18px",
+                                            textAlign: "left",
+                                            border: "1px solid #d8cbbd"
+                                        }}
+                                    >
+                                        Role / Permission
                                     </th>
-                                ))}
-                            </tr>
-                        </thead>
 
-                        <tbody>
-                            {matrix.roles.map((role) => (
-                                <tr key={role.role_id}>
-                                    <td style={{ fontWeight: "600", backgroundColor: "#f8f2eb" }}>
-                                        {role.role_name}
-                                    </td>
-
-                                    {matrix.permissions.map((permission) => {
-                                        const checked = hasPermission(
-                                            role.role_id,
-                                            permission.permission_id,
-                                            matrix.mappings
-                                        );
-
-                                        return (
-                                            <td
-                                                key={permission.permission_id}
-                                                style={{ textAlign: "center" }}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={checked}
-                                                    disabled={isLockedCell(role.role_name, permission.permission_key)}
-                                                    onChange={() =>
-                                                        togglePermission(
-                                                            role.role_id,
-                                                            permission.permission_id,
-                                                            checked
-                                                        )
-                                                    }
-                                                />
-                                            </td>
-                                        );
-                                    })}
+                                    {matrix.permissions.map((permission) => (
+                                        <th
+                                            key={permission.permission_id}
+                                            style={{
+                                                padding: "16px 18px",
+                                                textAlign: "center",
+                                                border: "1px solid #d8cbbd",
+                                                minWidth: "140px"
+                                            }}
+                                        >
+                                            {formatPermissionLabel(permission.permission_key)}
+                                        </th>
+                                    ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+
+                            <tbody>
+                                {matrix.roles.map((role, rowIndex) => (
+                                    <tr
+                                        key={role.role_id}
+                                        style={{
+                                            backgroundColor: rowIndex % 2 === 0 ? "#fcfaf7" : "#f8f2eb"
+                                        }}
+                                    >
+                                        <td
+                                            style={{
+                                                fontWeight: "600",
+                                                padding: "14px 18px",
+                                                border: "1px solid #d8cbbd"
+                                            }}
+                                        >
+                                            {role.role_name}
+                                        </td>
+
+                                        {matrix.permissions.map((permission) => {
+                                            const checked = hasPermission(
+                                                role.role_id,
+                                                permission.permission_id,
+                                                matrix.mappings
+                                            );
+
+                                            return (
+                                                <td
+                                                    key={permission.permission_id}
+                                                    style={{
+                                                        textAlign: "center",
+                                                        padding: "14px 18px",
+                                                        border: "1px solid #d8cbbd"
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        disabled={isLockedCell(role.role_name, permission.permission_key)}
+                                                        onChange={() =>
+                                                            togglePermission(
+                                                                role.role_id,
+                                                                permission.permission_id,
+                                                                checked
+                                                            )
+                                                        }
+                                                        style={{
+                                                            transform: "scale(1.2)",
+                                                            cursor: "pointer"
+                                                        }}
+                                                    />
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>

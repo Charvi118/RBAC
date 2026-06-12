@@ -2,17 +2,17 @@
 Dashboard page for the RBAC frontend.
 
 Responsibilities:
-- Restore and verify the current logged-in session.
-- Load the current user's profile data from the backend.
-- Show available modules based on the user's permissions.
-- Show disabled modules with "No Permission" when access is not allowed.
-- Redirect users to Access Denied when they try to open restricted pages.
-- Provide logout functionality.
+- restore and verify the current logged-in session
+- load the current user's profile data from the backend
+- show available modules based on the user's permissions
+- show disabled modules with "No Permission" when access is not allowed
+- redirect users to Access Denied when they try to open restricted pages
+- provide logout functionality
 
 Module behavior:
-- Dashboard uses the shared modules configuration file.
-- Page access is decided using the shared canAccess helper.
-- Modules without required permissions remain visible but appear disabled.
+- dashboard uses the shared modules configuration file
+- page access is decided using the shared canAccess helper
+- modules without required permissions remain visible but appear disabled
 */
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api";
@@ -24,22 +24,22 @@ export default function Dashboard({ setCurrentPage, setDeniedPermission }) {
 
     Props:
         setCurrentPage (function):
-            Used for frontend page navigation.
+            used for frontend page navigation
         setDeniedPermission (function):
-            Stores the required permission before redirecting
-            to the Access Denied page.
+            stores the required permission before redirecting
+            to the Access Denied page
 
     Behavior:
-        - Calls /session_check when the page loads.
-        - Redirects unauthenticated users to Login.
-        - Calls /me to fetch current user information.
-        - Uses shared module configuration to render module cards.
-        - Lets the user log out using POST /logout.
+        - calls /session_check when the page loads
+        - redirects unauthenticated users to Login
+        - calls /me to fetch current user information
+        - uses shared module configuration to render module cards
+        - lets the user log out using post /logout
 
     Returns:
         JSX.Element:
-            A dashboard page with module cards, access control behavior,
-            and logout support.
+            a dashboard page with module cards, access control behavior,
+            and logout support
     */
     const [profile, setProfile] = useState(null);
     const [message, setMessage] = useState("Checking session...");
@@ -69,12 +69,6 @@ export default function Dashboard({ setCurrentPage, setDeniedPermission }) {
                     return;
                 }
 
-                if (error.message === "FORBIDDEN") {
-                    setDeniedPermission("delete_user");
-                    setCurrentPage("access-denied");
-                    return;
-                }
-
                 setMessage("Could not load dashboard");
             } finally {
                 setLoading(false);
@@ -82,7 +76,7 @@ export default function Dashboard({ setCurrentPage, setDeniedPermission }) {
         };
 
         loadDashboard();
-    }, [setCurrentPage, setDeniedPermission]);
+    }, [setCurrentPage]);
 
     const hasPermission = (permission) => {
         if (!profile) return false;

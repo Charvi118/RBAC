@@ -2,40 +2,40 @@
 User Management page for the RBAC frontend.
 
 Responsibilities:
-- Check whether the logged-in user can access the user management module.
-- Call the backend protected route when the page opens.
-- Redirect unauthenticated users to the Login page.
-- Redirect unauthorized users to the Access Denied page with the required permission.
-- Show a success message when access is granted.
+- check whether the logged-in user can access the user management module
+- call the backend protected route when the page opens
+- redirect unauthenticated users to the Login page
+- redirect unauthorized users to the Access Denied page with the required permission
+- show a success message when access is granted
 
 Current scope:
-- This page checks access only.
-- Actual delete-user functionality is not implemented yet.
+- this page checks access only
+- actual delete-user functionality is not implemented yet
 */
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api";
 
 export default function UserManagementPage({ setCurrentPage, setDeniedPermission }) {
     /*
-   Renders the User Management page.
+    Renders the User Management page.
 
-   Props:
-       setCurrentPage (function):
-           Used for frontend page navigation.
-       setDeniedPermission (function):
-           Stores the missing permission before redirecting to
-           the Access Denied page.
+    Props:
+        setCurrentPage (function):
+            used for frontend page navigation
+        setDeniedPermission (function):
+            stores the missing permission before redirecting to
+            the Access Denied page
 
-   Behavior:
-       - Calls GET /delete-user when the page loads.
-       - If access is allowed, shows a success message.
-       - If the user is not logged in, sends them to Login.
-       - If the user lacks delete_user permission, sends them to Access Denied.
+    Behavior:
+        - calls get /delete-user when the page loads
+        - if access is allowed, shows a success message
+        - if the user is not logged in, sends them to Login
+        - if the user lacks user:delete permission, sends them to Access Denied
 
-   Returns:
-       JSX.Element:
-           A simple protected page with a back button and access message.
-   */
+    Returns:
+        JSX.Element:
+            a simple protected page with a back button and access message
+    */
     const [message, setMessage] = useState("Checking user management access...");
     const [loading, setLoading] = useState(true);
 
@@ -54,7 +54,7 @@ export default function UserManagementPage({ setCurrentPage, setDeniedPermission
                 }
 
                 if (error.message === "FORBIDDEN") {
-                    setDeniedPermission("delete_user");
+                    setDeniedPermission("user:delete");
                     setCurrentPage("access-denied");
                     return;
                 }

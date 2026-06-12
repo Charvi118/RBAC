@@ -1,24 +1,17 @@
 """
 Role Based Access Control helper module.
 
-Resposibilities:
+Responsibilities:
 - Check whether a user has a required permission.
 - Resolve permissions through the user -> role -> permission relationship.
 - Ensure inactive users are denied access.
-
-RBAC model:
-- Users
-- Roles
-- Permissions
-- user_roles (mapping users to roles)
-- role_permissions (mapping roles to permissions)
 
 Authorization rule:
 A user is allowed access only if:
 1. The user exists
 2. The user is active
-3. The user has at least one role.
-4. One of the user's roles contains the required permission.
+3. The user has at least one role
+4. One of the user's roles contains the required permission
 
 Security notes:
 - This module performs backend authorization checks.
@@ -26,9 +19,8 @@ Security notes:
 - Permission-denied attempts should be logged before production.
 
 Production notes:
-- Prefer SELECT EXISTS instead of SELECT count(1) for permission checks.
-- Add connection cleanup with try/finally or context managers.
-
+- Use select exists for yes/no permission checks.
+- Add safer connection cleanup before production if needed.
 """
 from app.db import get_connection
 
@@ -45,33 +37,32 @@ def check_permission(user_id: int, required_permission: str) -> bool:
         bool:
             True if the user is active and has the required permission
             through at least one assigned role. False otherwise.
-    Example:
-        check_permission(1, "billing:update")
 
     Security note:
         This function must be called by all protected backend routes.
         Do not rely only on frontend UI restrictions.
-
-            """
+    """
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(
         """
-        select count(1)
-        from users u
-        join user_roles ur on u.user_id = ur.user_id
-        join roles r on ur.role_id = r.role_id
-        join role_permissions rp on r.role_id = rp.role_id
-        join permissions p on rp.permission_id = p.permission_id
-        where u.user_id = %s
-        and u.is_active = TRUE
-        and p.permission_key = %s
+        select exists(
+            select 1
+            from users u
+            join user_roles ur on u.user_id = ur.user_id
+            join roles r on ur.role_id = r.role_id
+            join role_permissions rp on r.role_id = rp.role_id
+            join permissions p on rp.permission_id = p.permission_id
+            where u.user_id = %s
+            and u.is_active = true
+            and p.permission_key = %s
+        )
         """,
         (user_id, required_permission),
     )
 
-    count = cur.fetchone()[0]
+    allowed = cur.fetchone()[0]
     cur.close()
     conn.close()
-    return count >= 1
+    return allowed
